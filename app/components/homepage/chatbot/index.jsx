@@ -25,7 +25,7 @@ export default function FloatingChatbot() {
   setPanelOpen(false);
 
   try {
-    const res = await fetch("https://chatbot-gold-nine-27.vercel.app/chat", {
+    const res = await fetch("https://chatbot-gold-nine-27.vercel.app/api", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: text })
