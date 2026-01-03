@@ -7,6 +7,7 @@ import Experience from "./components/homepage/experience";
 import HeroSection from "./components/homepage/hero-section";
 import Projects from "./components/homepage/projects";
 import Skills from "./components/homepage/skills";
+import FloatingChatbot from "./components/homepage/chatbot";
 
 async function getData() {
   const res = await fetch(`https://dev.to/api/articles?username=${personalData.devUsername}`)
@@ -14,9 +15,10 @@ async function getData() {
   if (!res.ok) {
     throw new Error('Failed to fetch data')
   }
+  
 
   const data = await res.json();
-console.log(data,"new")
+  
   // const filtered = data.filter((item) => item?.cover_image).sort(() => Math.random() - 0.5);
   const filtered = data.filter((item) => item?.cover_image);
 
@@ -36,6 +38,7 @@ export default async function Home() {
       <Education />
       <Blog blogs={blogs} />
       <ContactSection />
+      <FloatingChatbot/>
     </div>
   )
 };
