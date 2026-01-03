@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect, useRef } from "react";
+
 
 const BASIC_QUESTIONS = [
   "Who is Sathick?",
@@ -7,6 +9,17 @@ const BASIC_QUESTIONS = [
   "Does he have banking experience?",
   "How can I contact him?"
 ];
+
+// ✅ Typing dots component
+function TypingBubble() {
+  return (
+    <div style={{ ...styles.message, ...styles.botMsg, ...styles.typingBubble }}>
+      <span style={{ ...styles.dot, animationDelay: "0ms" }} />
+      <span style={{ ...styles.dot, animationDelay: "150ms" }} />
+      <span style={{ ...styles.dot, animationDelay: "300ms" }} />
+    </div>
+  );
+}
 
 export default function FloatingChatbot() {
   const [open, setOpen] = useState(false);
@@ -16,36 +29,109 @@ export default function FloatingChatbot() {
   ]);
   const [input, setInput] = useState("");
 
- const sendMessage = async (text) => {
-  if (!text.trim()) return;
+const [showPopup, setShowPopup] = useState(false);
+const popupTimerRef = useRef(null);
+  
+  // ✅ NEW: typing state
+  const [botTyping, setBotTyping] = useState(false);
 
-  // Add user message
-  setMessages(prev => [...prev, { from: "user", text }]);
-  setInput("");
-  setPanelOpen(false);
 
-  try {
-    const res = await fetch("https://chatbot-gold-nine-27.vercel.app/api", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: text })
-    });
+ const messagesRef = useRef(null);
 
-    const data = await res.json();
-
-    setMessages(prev => [...prev, { from: "bot", text: data.answer }]);
-  } catch (err) {
-    console.error(err);
-    setMessages(prev => [
-      ...prev,
-      { from: "bot", text: "Oops! Something went wrong. Try again later." }
-    ]);
+useEffect(() => {
+  if (open) {
+    setShowPopup(false);
+    return;
   }
-};
 
+  const randomDelay = Math.floor(Math.random() * 10000) + 2000; // 5–15 sec
+
+  popupTimerRef.current = setTimeout(() => {
+    setShowPopup(true);
+
+    // auto hide after 4 sec
+    setTimeout(() => {
+      setShowPopup(false);
+    }, 4000);
+  }, randomDelay);
+
+  return () => clearTimeout(popupTimerRef.current);
+}, [open]);
+
+
+useEffect(() => {
+  if (!open) return;
+
+  // wait for DOM paint (important)
+  requestAnimationFrame(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  });
+}, [messages, botTyping, open]);
+
+
+  const sendMessage = async (text) => {
+    if (!text.trim()) return;
+
+    // Add user message
+    setMessages((prev) => [...prev, { from: "user", text }]);
+    setInput("");
+    setPanelOpen(false);
+
+    // ✅ show typing
+    setBotTyping(true);
+
+    try {
+      const res = await fetch("https://chatbot-gold-nine-27.vercel.app/api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text })
+      });
+
+      const data = await res.json();
+
+      setMessages((prev) => [...prev, { from: "bot", text: data.answer }]);
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [
+        ...prev,
+        { from: "bot", text: "Oops! Something went wrong. Try again later." }
+      ]);
+    } finally {
+      // ✅ hide typing
+      setBotTyping(false);
+    }
+  };
 
   return (
     <>
+      {/* ✅ Keyframes for typing animation */}
+      {showPopup && (
+  <div style={styles.popup}>
+    👋 Wanna know more about him?<br />
+    Ask his personal AI assistant!
+  </div>
+)}
+      <style>{`
+        @keyframes bounceDot {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+          40% { transform: translateY(-4px); opacity: 1; }
+        }
+
+        @keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+      `}</style>
+
       {/* Floating Button */}
       <button style={styles.fab} onClick={() => setOpen(!open)}>
         💬
@@ -60,22 +146,22 @@ export default function FloatingChatbot() {
           </div>
 
           {/* Messages */}
-          <div style={styles.messages}>
+          <div style={styles.messages} ref={messagesRef}>
             {messages.map((m, i) => (
               <div
                 key={i}
                 style={{
                   ...styles.message,
-                  alignSelf: m.from === "user" ? "flex-end" : "flex-start",
-                  background: m.from === "user" ? "#9233ee" : "#f1f5f9",
-                  color: m.from === "user" ? "#fff" : "#000"
+                  ...(m.from === "user" ? styles.userMsg : styles.botMsg)
                 }}
               >
                 {m.text}
               </div>
             ))}
-          </div>
 
+            {/* ✅ Typing bubble (bot side) */}
+            {botTyping && <TypingBubble />}
+          </div>
           {/* Bottom Sheet */}
           <div
             style={{
@@ -89,9 +175,7 @@ export default function FloatingChatbot() {
               onClick={() => setPanelOpen(!panelOpen)}
             >
               <div style={styles.handle} />
-              <span style={styles.handleText}>
-                {"Quick Questions"}
-              </span>
+              <span style={styles.handleText}>{"Quick Questions"}</span>
             </div>
 
             {/* Content */}
@@ -114,12 +198,22 @@ export default function FloatingChatbot() {
           <div style={styles.inputBox}>
             <input
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Type your question..."
               style={styles.input}
-              onKeyDown={e => e.key === "Enter" && sendMessage(input)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
+              // optional: prevent spamming while bot typing
+              disabled={botTyping}
             />
-            <button style={styles.sendBtn} onClick={() => sendMessage(input)}>
+            <button
+              style={{
+                ...styles.sendBtn,
+                opacity: botTyping ? 0.7 : 1,
+                cursor: botTyping ? "not-allowed" : "pointer"
+              }}
+              onClick={() => !botTyping && sendMessage(input)}
+              disabled={botTyping}
+            >
               Send
             </button>
           </div>
@@ -171,17 +265,28 @@ const styles = {
     overflowY: "auto",
     display: "flex",
     flexDirection: "column",
-    gap: "8px",
+    gap: "8px"
   },
   message: {
     padding: "8px 12px",
     borderRadius: "10px",
     maxWidth: "80%",
-    fontSize: "14px",
-    background: "#9233ee",
+    fontSize: "14px"
   },
+
+  // ✅ Use these so you don’t repeat inline logic
+  userMsg: {
+    alignSelf: "flex-end",
+    background: "#9233ee",
+    color: "#fff"
+  },
+  botMsg: {
+    alignSelf: "flex-start",
+    background: "#f1f5f9",
+    color: "#000"
+  },
+
   bottomSheet: {
-    // background: "#000",
     color: "#000",
     borderTop: "1px solid #e5e7eb",
     transition: "height 0.25s ease",
@@ -236,10 +341,40 @@ const styles = {
     padding: "8px 12px",
     background: "#9233ee",
     fontSize: "14px",
-    fontWight: "bold",
+    fontWeight: "bold", // ✅ fixed typo (fontWight -> fontWeight)
     color: "#fff",
     border: "none",
-    borderRadius: "6px",
-    cursor: "pointer"
-  }
+    borderRadius: "6px"
+  },
+
+  // ✅ Typing bubble styles
+  typingBubble: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    width: "fit-content"
+  },
+  dot: {
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+    background: "#64748b",
+    display: "inline-block",
+    animation: "bounceDot 0.9s infinite ease-in-out"
+  },
+  popup: {
+  position: "fixed",
+  bottom: "165px",
+  right: "20px",
+  maxWidth: "220px",
+  background: "#111827",
+  color: "#fff",
+  padding: "10px 12px",
+  borderRadius: "10px",
+  fontSize: "13px",
+  boxShadow: "0 8px 20px rgba(0,0,0,0.3)",
+  animation: "fadeSlideIn 0.4s ease",
+  zIndex: 999
+}
+
 };
