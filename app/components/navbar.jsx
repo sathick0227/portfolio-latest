@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,6 +15,20 @@ function Navbar() {
     { href: "/#projects", label: "< PROJECTS />" },
   ];
 
+  // ✅ Disable background scroll on mobile when menu is open
+  useEffect(() => {
+    if (isMenuOpen && window.innerWidth < 1024) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    // Cleanup (important for route changes)
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMenuOpen]);
+
   return (
     <nav className="bg-transparent relative">
       <div className="flex items-center justify-between py-5">
@@ -27,7 +41,7 @@ function Navbar() {
           </Link>
         </div>
 
-        {/* Desktop Menu - Show only on large screens (lg breakpoint and above) */}
+        {/* Desktop Menu */}
         <ul className="hidden lg:flex lg:space-x-1 lg:items-center">
           {navItems.map((item) => (
             <li key={item.label}>
@@ -43,7 +57,7 @@ function Navbar() {
           ))}
         </ul>
 
-        {/* Hamburger Button - Show on medium and small screens (up to lg breakpoint) */}
+        {/* Hamburger Button */}
         <button
           className="lg:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -55,15 +69,15 @@ function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Menu Overlay for larger mobile devices */}
+      {/* Overlay */}
       <div
         className={`lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 ${
           isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setIsMenuOpen(false)}
-      ></div>
+      />
 
-      {/* Mobile Menu Slide-in - Show on medium and small screens */}
+      {/* Mobile Menu */}
       <div
         className={`lg:hidden fixed top-0 right-0 h-full w-80 bg-[#1a1443] z-50 transform transition-transform duration-300 ease-in-out ${
           isMenuOpen ? "translate-x-0" : "translate-x-full"
@@ -77,7 +91,7 @@ function Navbar() {
           >
             ×
           </button>
-          
+
           <ul className="flex flex-col space-y-8">
             {navItems.map((item) => (
               <li key={item.label}>
@@ -93,12 +107,14 @@ function Navbar() {
               </li>
             ))}
           </ul>
-          
+
           <div className="mt-auto pb-10 text-center">
             <div className="text-[#16f2b3] text-xl font-bold">
               {"< Sathick Batcha />"}
             </div>
-            <p className="text-gray-400 text-sm mt-2">Full Stack Developer</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Full Stack Developer
+            </p>
           </div>
         </div>
       </div>
